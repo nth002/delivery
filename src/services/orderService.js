@@ -1,78 +1,205 @@
-// For Netlify deployment - use your Render/Railway backend URL
-// If you don't have a hosted backend yet, we need to create one
+// Direct SQLite connection - reads from your src/db.sqlite3 file
+import initSqlJs from 'sql.js';
 
-// TEMPORARY FIX - Use a hosted backend service
-// You need to deploy your backend to Render/Railway first
-const API_URL = 'https://your-backend-url.onrender.com/api'; // Replace with your actual backend URL
+// Path to your SQLite file in public folder
+const DB_PATH = '/db.sqlite3';
 
-export const orderService = {
+let db = null;
+
+export const sqliteService = {
+  // Initialize database from file
+  async initDB() {
+    if (!db) {
+      try {
+        // Load SQL.js
+        const SQL = await initSqlJs({
+          locateFile: file => `https://sql.js.org/dist/${file}`
+        });
+
+        // Fetch your SQLite file from public folder
+        const response = await fetch(DB_PATH);
+        const arrayBuffer = await response.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Load database
+        db = new SQL.Database(uint8Array);
+        console.log('✅ Database loaded from:', DB_PATH);
+        
+        // Check if tables exist, create if not
+        this.ensureTables();
+      } catch (error) {
+        console.error('❌ Error loading database:', error);
+        // Create new database if file doesn't exist
+        const SQL = await initSqlJs();
+        db = new SQL.Database();
+        this.createTables();
+        this.saveToFile();
+      }
+    }
+    return db;
+  },
+
+  // Ensure tables exist
+  ensureTables() {
+    try {
+      // Check if orders table exists
+      const result = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'");
+      if (result.length === 0) {
+        this.createTables();
+      }
+    } catch (error) {
+      this.createTables();
+    }
+  },
+
+  // Create tables
+  createTables() {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId TEXT UNIQUE,
+        customerName TEXT,
+        customerPhone TEXT,
+        address TEXT,
+        items TEXT,
+        total REAL,
+        paymentMethod TEXT,
+        status TEXT DEFAULT 'pending',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Tables created');
+  },
+
+  // Save database to file (download for backup)
+  saveToFile() {
+    const data = db.export();
+    const blob = new Blob([data], { type: 'application/x-sqlite3' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'db.sqlite3';
+    a.click();
+  },
+
   // Get all orders
   async getAllOrders() {
+    await this.initDB();
     try {
-      console.log('Fetching from:', API_URL + '/orders');
-      const response = await fetch(`${API_URL}/orders`);
-      if (!response.ok) throw new Error('Failed to fetch');
-      return await response.json();
+      const result = db.exec("SELECT * FROM orders ORDER BY createdAt DESC");
+      
+      if (result.length === 0) return [];
+      
+      const columns = result[0].columns;
+      const values = result[0].values;
+      
+      return values.map(row => {
+        const order = {};
+        columns.forEach((col, i) => {
+          if (col === 'items') {
+            try {
+              order[col] = JSON.parse(row[i]);
+            } catch {
+              order[col] = [];
+            }
+          } else {
+            order[col] = row[i];
+          }
+        });
+        return order;
+      });
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('Error getting orders:', error);
       return [];
     }
   },
 
-  // Add new order
+  // Add order
   async addOrder(orderData) {
+    await this.initDB();
     try {
-      const response = await fetch(`${API_URL}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-      return await response.json();
+      const stmt = db.prepare(`
+        INSERT INTO orders (orderId, customerName, customerPhone, address, items, total, paymentMethod)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      stmt.run([
+        orderData.orderId,
+        orderData.customerName,
+        orderData.customerPhone,
+        orderData.address,
+        JSON.stringify(orderData.items),
+        orderData.total,
+        orderData.paymentMethod
+      ]);
+      
+      // Get the last insert ID
+      const idResult = db.exec("SELECT last_insert_rowid()");
+      const id = idResult[0]?.values[0][0];
+      
+      // Download updated database
+      this.saveToFile();
+      
+      return { success: true, id };
     } catch (error) {
       console.error('Error adding order:', error);
       throw error;
     }
   },
 
-  // Update order status
+  // Update status
   async updateStatus(id, status) {
+    await this.initDB();
     try {
-      const response = await fetch(`${API_URL}/orders/${id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
-      return await response.json();
+      db.run(`UPDATE orders SET status = ? WHERE id = ?`, [status, id]);
+      this.saveToFile();
+      return { success: true };
     } catch (error) {
       console.error('Error updating status:', error);
-      throw error;
+      return { success: false };
     }
   },
 
   // Delete order
   async deleteOrder(id) {
+    await this.initDB();
     try {
-      const response = await fetch(`${API_URL}/orders/${id}`, {
-        method: 'DELETE',
-      });
-      return await response.json();
+      db.run(`DELETE FROM orders WHERE id = ?`, [id]);
+      this.saveToFile();
+      return { success: true };
     } catch (error) {
       console.error('Error deleting order:', error);
-      throw error;
+      return { success: false };
     }
   },
 
   // Get statistics
   async getStats() {
+    await this.initDB();
     try {
-      const response = await fetch(`${API_URL}/stats`);
-      return await response.json();
+      const total = db.exec("SELECT COUNT(*) FROM orders")[0]?.values[0][0] || 0;
+      const pending = db.exec("SELECT COUNT(*) FROM orders WHERE status = 'pending'")[0]?.values[0][0] || 0;
+      const completed = db.exec("SELECT COUNT(*) FROM orders WHERE status = 'completed'")[0]?.values[0][0] || 0;
+      const cancelled = db.exec("SELECT COUNT(*) FROM orders WHERE status = 'cancelled'")[0]?.values[0][0] || 0;
+      
+      const totalEarnings = db.exec("SELECT SUM(total) FROM orders WHERE status = 'completed'")[0]?.values[0][0] || 0;
+      
+      const todayEarnings = db.exec(`
+        SELECT SUM(total) FROM orders 
+        WHERE status = 'completed' 
+        AND date(createdAt) = date('now')
+      `)[0]?.values[0][0] || 0;
+      
+      return {
+        total,
+        pending,
+        completed,
+        cancelled,
+        totalEarnings,
+        todayEarnings
+      };
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error getting stats:', error);
       return {
         total: 0,
         pending: 0,
@@ -81,6 +208,42 @@ export const orderService = {
         totalEarnings: 0,
         todayEarnings: 0
       };
+    }
+  },
+
+  // Search orders by phone
+  async searchByPhone(phone) {
+    await this.initDB();
+    try {
+      const result = db.exec(`
+        SELECT * FROM orders 
+        WHERE customerPhone LIKE '%${phone}%' 
+        ORDER BY createdAt DESC
+      `);
+      
+      if (result.length === 0) return [];
+      
+      const columns = result[0].columns;
+      const values = result[0].values;
+      
+      return values.map(row => {
+        const order = {};
+        columns.forEach((col, i) => {
+          if (col === 'items') {
+            try {
+              order[col] = JSON.parse(row[i]);
+            } catch {
+              order[col] = [];
+            }
+          } else {
+            order[col] = row[i];
+          }
+        });
+        return order;
+      });
+    } catch (error) {
+      console.error('Error searching orders:', error);
+      return [];
     }
   }
 };
