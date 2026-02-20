@@ -24,7 +24,7 @@ const initializeProducts = () => {
     { 
       id: 'coffee_2', 
       name: 'NORMAL COFFEE', 
-      price: 15, 
+      price: 20, 
       category: 'coffee', 
       description: 'Fresh brewed regular coffee' 
     },
