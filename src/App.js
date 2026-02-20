@@ -33,7 +33,7 @@ const foodImages = {
   'JALEBI': 'https://www.vegrecipesofindia.com/wp-content/uploads/2021/02/jalebi-500x500.jpg',
   'ROSOGOLLA': 'https://images.pond5.com/famous-bengali-or-indian-sweets-footage-278852815_iconl.jpeg',
   'SANDESH': 'https://media.istockphoto.com/id/2184678599/photo/rasgulla.webp?a=1&b=1&s=612x612&w=0&k=20&c=CbNrIqR6TCd7pSbc85niJOciNHnPBeoK-pmtoNX5nj4=',
-  'MISHTI DOI': 'https://media.istockphoto.com/id/2184678599/photo/rasgulla.webp?a=1&b=1&s=612x612&w=0&k=20&c=CbNrIqR6TCd7pSbc85niJOciNHnPBeoK-pmtoNX5nj4=',
+  'MISHTI DOI': 'https://cdn.prod.website-files.com/64931d2aee18510b47f4bb1f/6685ac20f1316f7a50ffe27c_Mishti-Doi-Recipe-Cover-Image.jpg',
   
   // Snacks
   'BISCUITS - SMALL PACK': 'https://images.pexels.com/photos/1895367/pexels-photo-1895367.jpeg?w=500',
@@ -203,18 +203,11 @@ const initializeData = () => {
           popular: true,
           image: foodImages['ROSOGOLLA']
         },
-        { 
-          id: 'bengal_2', 
-          name: 'SANDESH', 
-          price: 150, 
-          category: 'sweets', 
-          description: '6 pieces - Fresh sandesh',
-          image: foodImages['SANDESH']
-        },
+    
         { 
           id: 'bengal_3', 
           name: 'MISHTI DOI', 
-          price: 80, 
+          price: 150, 
           category: 'sweets', 
           description: 'Sweet yogurt - 200ml',
           popular: true,
