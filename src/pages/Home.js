@@ -13,6 +13,8 @@ import FastfoodIcon from '@mui/icons-material/Fastfood';
 import CakeIcon from '@mui/icons-material/Cake';
 import FreeBreakfastIcon from '@mui/icons-material/FreeBreakfast';
 import LunchDiningIcon from '@mui/icons-material/LunchDining';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
+import OrderTracking from '../components/OrderTracking'; // Import the tracking component
 
 function HomePage() {
   const [restaurants, setRestaurants] = useState([]);
@@ -22,6 +24,7 @@ function HomePage() {
   const [selectedCuisine, setSelectedCuisine] = useState('all');
   const [viewMode, setViewMode] = useState('restaurants');
   const [trendingItems, setTrendingItems] = useState([]);
+  const [showTracking, setShowTracking] = useState(false); // State for tracking modal
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -187,6 +190,23 @@ function HomePage() {
       backdropFilter: 'blur(5px)',
       fontSize: '1rem',
       color: '#D4AF37',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+    },
+    trackButton: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      background: 'rgba(212,175,55,0.15)',
+      padding: '12px 25px',
+      borderRadius: '40px',
+      border: '2px solid #D4AF37',
+      backdropFilter: 'blur(5px)',
+      fontSize: '1rem',
+      color: '#D4AF37',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+      fontWeight: '500',
     },
     trendingSection: {
       padding: '40px 20px',
@@ -439,7 +459,7 @@ function HomePage() {
             <SearchIcon style={styles.searchIcon} />
           </motion.div>
 
-          {/* Stats Row */}
+          {/* Stats Row with Track Order Button */}
           <motion.div 
             style={styles.statsRow}
             initial={{ y: 20, opacity: 0 }}
@@ -455,6 +475,15 @@ function HomePage() {
             <div style={styles.statItem}>
               <EmojiFoodBeverageIcon /> Free Delivery
             </div>
+            {/* Track Order Button */}
+            <motion.div 
+              style={styles.trackButton}
+              whileHover={{ scale: 1.05, background: 'rgba(212,175,55,0.25)' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowTracking(true)}
+            >
+              <TrackChangesIcon /> Track Order
+            </motion.div>
           </motion.div>
         </div>
       </div>
@@ -614,6 +643,13 @@ function HomePage() {
           <p>Try searching for something else</p>
         </motion.div>
       )}
+
+      {/* Order Tracking Modal */}
+      <AnimatePresence>
+        {showTracking && (
+          <OrderTracking onClose={() => setShowTracking(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
